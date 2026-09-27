@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"os"
 
 	qrcode "github.com/skip2/go-qrcode"
 	mail "github.com/wneessen/go-mail"
@@ -16,6 +17,7 @@ type SMTPMailer struct {
 }
 
 func NewSMTP(host string, port int, username, password, fromEmail, fromName, hackathonName, portalURL string) (*SMTPMailer, error) {
+
 	if port == 0 {
 		port = 587
 	}
@@ -25,12 +27,22 @@ func NewSMTP(host string, port int, username, password, fromEmail, fromName, hac
 
 	// TLSMandatory covers real providers: STARTTLS on 587, implicit TLS on 465.
 	// A plaintext local catcher (e.g. Mailpit) would need TLSOpportunistic instead.
+	tlsPolicy := mail.TLSMandatory
+	smtpAuth := mail.SMTPAuthAutoDiscover
+
+	if os.Getenv("ENV") == "development" &&
+		os.Getenv("LOCAL_MAILPIT") == "true" &&
+		host == "localhost" && port == 1025 {
+		tlsPolicy = mail.TLSOpportunistic
+		smtpAuth = mail.SMTPAuthPlain
+	}
+
 	client, err := mail.NewClient(host,
 		mail.WithPort(port),
-		mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover),
+		mail.WithSMTPAuth(smtpAuth),
 		mail.WithUsername(username),
 		mail.WithPassword(password),
-		mail.WithTLSPortPolicy(mail.TLSMandatory),
+		mail.WithTLSPortPolicy(tlsPolicy),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating SMTP client: %w", err)

@@ -2,7 +2,10 @@ package auth
 
 import (
 	"context"
+	"os"
 	"time"
+
+	"github.com/supertokens/supertokens-golang/ingredients/emaildelivery"
 
 	"github.com/hackutd/harp/internal/store"
 	"github.com/supertokens/supertokens-golang/recipe/passwordless"
@@ -66,11 +69,34 @@ func googleEnabled(cfg Config) bool {
 }
 
 func passwordlessRecipe(appStore store.Storage) supertokens.Recipe {
-	return passwordless.Init(plessmodels.TypeInput{
+	config := plessmodels.TypeInput{
 		ContactMethodEmail: plessmodels.ContactMethodEmailConfig{Enabled: true},
 		FlowType:           "MAGIC_LINK",
 		Override:           passwordlessOverrides(appStore),
-	})
+	}
+
+	if os.Getenv("ENV") == "development" &&
+		os.Getenv("LOCAL_MAILPIT") == "true" {
+		username := "dev"
+
+		config.EmailDelivery = &emaildelivery.TypeInput{
+			Service: passwordless.MakeSMTPService(emaildelivery.SMTPServiceConfig{
+				Settings: emaildelivery.SMTPSettings{
+					Host:     "localhost",
+					Port:     1025,
+					Username: &username,
+					Password: "dev",
+					Secure:   false,
+					From: emaildelivery.SMTPFrom{
+						Name:  "NTHS Hackathon",
+						Email: "noreply@example.com",
+					},
+				},
+			}),
+		}
+	}
+
+	return passwordless.Init(config)
 }
 
 func sessionRecipe() supertokens.Recipe {
